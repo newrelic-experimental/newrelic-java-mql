@@ -46,12 +46,12 @@ Note that the report_sql setting applies to all database queries not just to the
 The settings are set in newrelic.yml.  If not present then default values are used.    
    
 The setting are included in a MQL.Reporting stanza (sample shown below).   It includes two settings: enabled and type.  The enabled setting is given a true or false value.  The type setting takes the same values as report_sql (off, raw or obfuscated).   Default value for enabled is false and default value for obfuscated.   
+
+Note that record_sql and the MQL settings are dynamic.  They can be changed in newrelic.yml and will change within a minute or so without having to restart the application.   
    
 ### Example
-  MQL:
-    Reporting:
-      enabled: true
-      type: obfuscated
+
+<img width="667" alt="image" src="https://github.com/user-attachments/assets/cb7212c2-fd4b-444c-9591-99a51d21fff7">
    
 ### Behavior of Settings
 #### record_sql is raw
