@@ -17,6 +17,10 @@ public class MQLCommands {
 		
 		String command = splits[0];
 		int paramsToUse = getParamsToUse(command);
+		
+		if(splits.length == 1) {
+			return getParameters(command, "None", query, converter);
+		}
 
 		if(paramsToUse == 1) {
 			boolean useArg = splits[1].startsWith("$");
