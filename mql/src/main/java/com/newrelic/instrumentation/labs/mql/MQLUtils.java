@@ -15,36 +15,87 @@ import matrix.util.MatrixException;
 
 public class MQLUtils implements AgentConfigListener {
 
-	public static boolean recordRaw;
+	private static final String MQL_REPORTING = "MQL.Reporting.enabled";
+	private static final String MQL_REPORTING_TYPE = "MQL.Reporting.type";
+	
+	private enum REPORTINGTYPE  {
+		OFF, 
+		RAW, 
+		OBFUSCATED
+	};
+	
+	private static REPORTINGTYPE MQL_reportType = REPORTINGTYPE.OBFUSCATED;
+	private static REPORTINGTYPE SQL_reportType = REPORTINGTYPE.OBFUSCATED;
+	private static boolean enabled = false;
 	
 	static {
 		Config config = NewRelic.getAgent().getConfig();
 		if(config instanceof AgentConfig) {
 			AgentConfig aConfig = (AgentConfig)config;
+			
 			String recordSQL = aConfig.getTransactionTracerConfig().getRecordSql();
-			if(recordSQL != null) {
-				if(recordSQL.equalsIgnoreCase("raw")) {
-					recordRaw = true;
-				} else {
-					recordRaw = false;
-				}
-			} else {
-				recordRaw = false;
-			}
+			SQL_reportType = REPORTINGTYPE.valueOf(recordSQL.toUpperCase());
 		} else {
-			recordRaw = false;
+			SQL_reportType = REPORTINGTYPE.OBFUSCATED;
 		}
-		NewRelic.getAgent().getLogger().log(Level.INFO, "New Relic {0} collect raw MQL queries", recordRaw ? "will" : "will not");
+		NewRelic.getAgent().getLogger().log(Level.INFO, "MQL queries will be reported as {0} in db.statement Span", SQL_reportType);
 		ConfigService configService = ServiceFactory.getConfigService();
 		if(configService != null) {
 			configService.addIAgentConfigListener(new MQLUtils());
-			NewRelic.getAgent().getLogger().log(Level.INFO, "Will listen for changes to sql_record", recordRaw ? "will" : "will not");
+			NewRelic.getAgent().getLogger().log(Level.INFO, "Will listen for changes to the agent configuration");
 		}
+		Boolean b = config.getValue(MQL_REPORTING, Boolean.FALSE);
+		if(b != enabled) {
+			enabled = b;
+		}
+		NewRelic.getAgent().getLogger().log(Level.INFO, "MQL Reporting is {0}", enabled ? "enabled" : "disabled");
+		
+		// need get as Object because off gets parsed as a Boolean
+		Object typeObject = config.getValue(MQL_REPORTING_TYPE);
+		String typeString;
+		if(typeObject instanceof Boolean) {
+			// set to off
+			typeString = "off";
+		} else {
+			typeString = typeObject.toString();
+		}
+		if(typeString != null) {
+			MQL_reportType = REPORTINGTYPE.valueOf(typeString.toUpperCase());
+		} else if(MQL_reportType != REPORTINGTYPE.OBFUSCATED) {
+			MQL_reportType = REPORTINGTYPE.OBFUSCATED;
+		}
+		NewRelic.getAgent().getLogger().log(Level.INFO, "MQL Reporting type is {0}", MQL_reportType);
+	}
+
+	public static String getCommandToReport(String command) {
+		/*
+		 * will return null if report_sql is off and MQL reporting is not enabled or enabled and set to off
+		 */
+		if(SQL_reportType == REPORTINGTYPE.OFF) {
+			if(enabled && MQL_reportType == REPORTINGTYPE.OFF) {
+				return null;
+			} else if(!enabled) {
+				return null;
+			}
+		}
+		
+		return command;
 	}
 	
 	public static String getCommandWithArgs(String command, String[] args) {
 		
 		if(command == null) return command;
+		
+		if(SQL_reportType == REPORTINGTYPE.OBFUSCATED || SQL_reportType == REPORTINGTYPE.OFF) {
+			// if record_sql is set to off or obfuscated then only report if MQL reporting is enabled and set to raw
+			if(enabled) {
+				if(MQL_reportType != REPORTINGTYPE.RAW) {
+					return null;
+				}
+			} else {
+				return null;
+			}
+		}
 		
 		int numOfArgs = args != null ? args.length : 0;
 		
@@ -85,22 +136,34 @@ public class MQLUtils implements AgentConfigListener {
 	@Override
 	public void configChanged(String appName, AgentConfig agentConfig) {
 		String recordSQL = agentConfig.getTransactionTracerConfig().getRecordSql();
-		boolean isRaw;
 		if(recordSQL != null) {
-			if(recordSQL.equalsIgnoreCase("raw")) {
-				isRaw = true;
-			} else {
-				isRaw = false;
-			}
+			SQL_reportType = REPORTINGTYPE.valueOf(recordSQL.toUpperCase());
 		} else {
-			isRaw = false;
+			SQL_reportType = REPORTINGTYPE.OBFUSCATED;
 		}
-		if(isRaw != recordRaw) {
-			NewRelic.getAgent().getLogger().log(Level.INFO, "Changing whether to collect raw MQL from {0} to {1}" , recordRaw, isRaw);
-			recordRaw = isRaw;
+		NewRelic.getAgent().getLogger().log(Level.INFO, "MQL queries will be reported as {0} in db.statement Span", SQL_reportType);
+
+		Boolean b = agentConfig.getValue(MQL_REPORTING, Boolean.FALSE);
+		if(b != enabled) {
+			enabled = b;
+		}
+		NewRelic.getAgent().getLogger().log(Level.INFO, "MQL Reporting is {0}", enabled ? "enabled" : "disabled");
+		
+		// need get as Object because off gets parsed as a Boolean
+		Object typeObject = agentConfig.getValue(MQL_REPORTING_TYPE);
+		String typeString;
+		if(typeObject instanceof Boolean) {
+			// set to off
+			typeString = "off";
 		} else {
-			NewRelic.getAgent().getLogger().log(Level.INFO, "No change needed for current value for collecting raw MQL: {0}" , recordRaw);
+			typeString = typeObject.toString();
 		}
+		if(typeString != null) {
+			MQL_reportType = REPORTINGTYPE.valueOf(typeString.toUpperCase());
+		} else if(MQL_reportType != REPORTINGTYPE.OBFUSCATED) {
+			MQL_reportType = REPORTINGTYPE.OBFUSCATED;
+		}
+		NewRelic.getAgent().getLogger().log(Level.INFO, "MQL Reporting type is {0}", MQL_reportType);
 	}
 
 	

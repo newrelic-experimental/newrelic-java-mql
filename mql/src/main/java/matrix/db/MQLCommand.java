@@ -16,16 +16,11 @@ public abstract class MQLCommand {
 	public boolean executeCommand(Context context, String command, String[] args) {
 		TracedMethod traced = NewRelic.getAgent().getTracedMethod();
 		
-		String withArgs;
-		if(MQLUtils.recordRaw) {
-			withArgs = MQLUtils.getCommandWithArgs(command, args);
-		} else {
-			withArgs = "Cannot populate since record_sql is not set to raw";
-		}
-		traced.addCustomAttribute("MQL-CommandWithArgs", withArgs != null ? withArgs : "Unable to populate");
+		String withArgs = MQLUtils.getCommandWithArgs(command, args);
+		traced.addCustomAttribute("MQL-CommandWithArgs", withArgs != null ? withArgs : "Unable to record");
 		
-		
-		traced.addCustomAttribute("MQL-Command", command);
+		String cmdToReport = MQLUtils.getCommandToReport(command);
+		traced.addCustomAttribute("MQL-Command", cmdToReport != null ? cmdToReport : "Unable to record");
 		DatastoreParameters params = MQLCommands.getDatastoreParams(command, args);
 		if(params != null) {
 			NewRelic.getAgent().getTracedMethod().reportAsExternal(params);
@@ -43,14 +38,11 @@ public abstract class MQLCommand {
 	public boolean executeCommand(Context context,boolean b1, boolean b2, boolean b3, String command, String[] args) {
 		TracedMethod traced = NewRelic.getAgent().getTracedMethod();
 
-		String withArgs;
-		if(MQLUtils.recordRaw) {
-			withArgs = MQLUtils.getCommandWithArgs(command, args);
-		} else {
-			withArgs = "Cannot populate since record_sql is not set to raw";
-		}
-		traced.addCustomAttribute("MQL-CommandWithArgs", withArgs != null ? withArgs : "Unable to populate");
-		traced.addCustomAttribute("MQL-Command", command);
+		String withArgs = MQLUtils.getCommandWithArgs(command, args);
+		traced.addCustomAttribute("MQL-CommandWithArgs", withArgs != null ? withArgs : "Unable to record");
+		
+		String cmdToReport = MQLUtils.getCommandToReport(command);
+		traced.addCustomAttribute("MQL-Command", cmdToReport != null ? cmdToReport : "Unable to record");
 		
 		DatastoreParameters params = MQLCommands.getDatastoreParams(command, args);
 		if(params != null) {
